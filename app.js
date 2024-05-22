@@ -2,6 +2,9 @@ const APP = {
   SW: null,
   init() {
     APP.initServiceWorker();
+    document
+      .querySelector('#loadImage')
+      .addEventListener('click', APP.loadImage);
   },
   initServiceWorker() {
     if ('serviceWorker' in navigator) {
@@ -20,34 +23,20 @@ const APP = {
       console.log('service worker is not supported');
     }
   },
-  storageInfo() {
-    // info from storage it self
-    if ('storage' in navigator) {
-      if ('estimate' in navigator.storage) {
-        navigator.storage.estimate().then(({ quota, usage }) => {
-          usage = parseInt(usage / 1024);
-          quota = parseInt(quota / 1024);
-          console.log(`Have used ${usage} of ${quota}`);
-        });
-        navigator.storage.persist().then((doesAllow) => {
-          console.log(`Browser ${doesAllow} persist`);
-        });
-      }
-    }
-
-    // checking the size of imageCache
-    caches.open('imageCache').then((cache) => {
-      cache.matchAll().then((matches) => {
-        let storage = 0;
-        matches.forEach((response) => {
-          if (response.headers.has('content-length')) {
-            storage += parseInt(response.headers.get('content-length'));
-            console.log(`Adding the size of the ${response.url}`);
-          }
-        });
-        console.log(`total size of image cache is ${storage}`);
-      });
+  loadImage() {
+    const img = document.createElement('img');
+    const p = document.createElement('p');
+    const output = document.querySelector('output');
+    img.addEventListener('load', () => {
+      p.append(img);
+      output.append(p);
     });
+    img.addEventListener('error', () => {
+      p.textContent = 'Sorry failed to load your image it cant be found';
+      output.append(p);
+    });
+    img.src = '/assets/404.png';
+    img.alt = 'dynamically added image';
   },
 };
 
