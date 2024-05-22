@@ -1,8 +1,6 @@
 const version = 2;
 const staticCache = `static-${version}`;
-const imageCache = `image-${version}`;
-const files = ['/', '/index.html', '/404.html', '/index.css', '/app.js'];
-const imageFiles = ['/assets/404.png'];
+const files = ['/', '/index.html', '/index.css', '/app.js'];
 
 /**------------------UTILITY FUNCTIONS--------------------- */
 /**to setup during installation */
@@ -10,8 +8,6 @@ async function addInitialFiles() {
   try {
     const static = await caches.open(staticCache);
     await static.addAll(files);
-    const images = await caches.open(imageCache);
-    await images.addAll(imageFiles);
   } catch (err) {
     console.log('Failed to register static files');
   }
@@ -20,9 +16,7 @@ async function addInitialFiles() {
 async function removeUnusedFiles() {
   const keys = await caches.keys();
   return Promise.all(
-    keys
-      .filter((key) => key != staticCache && key != imageCache)
-      .map((key) => caches.delete(key))
+    keys.filter((key) => key != staticCache).map((key) => caches.delete(key))
   );
 }
 /**store the fetch response in cache and return it */
@@ -34,6 +28,17 @@ async function storeInCache(cacheName, req, fetchResponse) {
 /**find from cache just for readability */
 function getFromCache(url) {
   return caches.match(url);
+}
+/** */
+async function sendMessage(response, clientId) {
+  let clientsList = [];
+  if (clientId) {
+    let client = await clients.get(clientId); // sending message to particular client/tab
+    clientsList.push(client);
+  } else {
+    clientsList = await clients.matchAll({ includeUncontrolled: true });
+  }
+  return Promise.all(clientsList.map((client) => client.postMessage(response)));
 }
 /**------------------UTILITY FUNCTIONS END--------------------- */
 
@@ -66,29 +71,22 @@ self.addEventListener('fetch', async (e) => {
   try {
     const fetchResponse = await fetch(e.request);
     if (fetchResponse.ok) {
-      let type = fetchResponse.headers.get('content-type');
-      if (type.match(/^image\//)) {
-        // if image
-        console.log('stored in image cache');
-        return storeInCache(imageCache, e.request, fetchResponse);
-      }
-      console.log('stored in static cache'); // else
+      console.log('stored in static cache');
       return storeInCache(staticCache, e.request, fetchResponse);
-    } else {
-      // if not ok response status other than 200
-      if (e.request.url.match(/.html/)) {
-        return getFromCache('/404.html');
-      }
-      if (e.request.url.match(/.png/)) {
-        console.log('in image');
-        return getFromCache(imageFiles[0]);
-      }
     }
   } catch (err) {
-    return getFromCache('/404.html');
+    return fetch(e.request);
   }
 });
 
 self.addEventListener('message', (ev) => {
   console.log('received message', ev);
+  const payload = ev.data;
+  let clientId = ev.source.id;
+  if ('addConfig' in payload) {
+    sendMessage({ code: 0, message: 'Pretend i added config' }, clientId);
+  }
+  if ('otherAction' in payload) {
+    sendMessage({ code: 0, message: 'broadcasting this message' });
+  }
 });
