@@ -1,33 +1,29 @@
-const version = 'client-msg-1';
+const version = 'channel-message-sw-1';
 
-self.addEventListener('install', (ev) => {
-  console.log('installed');
-});
-self.addEventListener('activate', (ev) => {
-  console.log('activated');
-});
-self.addEventListener('fetch', (ev) => {
-  console.log(`fetch request for ${ev.request.url}`);
-  sendMessage('single tab sent the request', ev.clientId);
-});
+self.addEventListener('install', (_ev) => {});
+self.addEventListener('activate', (_ev) => {});
+self.addEventListener('fetch', (_ev) => {});
 
 self.addEventListener('message', (ev) => {
-  console.log('message received', ev.data, ev.source.id);
-  sendMessage();
+  //message from a client
+  if (ev.data) {
+    if ('port' in ev.data) {
+      const port = ev.ports[0];
+      self.port = port;
+      self.port.onmessage = gotMessage;
+    }
+  }
 });
 
-function sendMessage(msg, clientId) {
-  if (clientId) {
-    clients.get(clientId).then((client) => {
-      client.postMessage(msg);
-    });
-  } else {
-    clients.matchAll().then((clients) => {
-      clients.forEach((client) => {
-        client.postMessage({
-          msg: 'This should be received by the all the tabs',
-        });
-      });
-    });
+function gotMessage(ev) {
+  //received a message on a port
+  console.log(ev.data);
+  sendMessage();
+}
+
+function sendMessage() {
+  //send a message on a port
+  if ('port' in self) {
+    self.port.postMessage({ message: 'Hello from port 2' });
   }
 }

@@ -12,7 +12,12 @@ html {
 body {
   min-height: 100vh;
 }
-input,
 button {
   font-size: 1rem;
+  border: none;
+  padding: 0.25rem 2rem;
+  cursor: pointer;
+}
+button:hover {
+  background-color: orangered;
 }
