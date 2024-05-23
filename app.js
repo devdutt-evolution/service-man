@@ -1,5 +1,6 @@
 const APP = {
   SW: null,
+  DB: null,
   init() {
     APP.initServiceWorker();
     document
@@ -49,23 +50,16 @@ const APP = {
       navigator.serviceWorker.controller.postMessage(data);
     }
   },
-  loadImage() {
-    const img = document.createElement('img');
-    const p = document.createElement('p');
-    const output = document.querySelector('output');
-    img.addEventListener('load', () => {
-      p.append(img);
-      output.append(p);
-    });
-    img.addEventListener('error', () => {
-      p.textContent = 'Sorry failed to load your image it cant be found';
-      output.append(p);
-    });
-    img.src = '/assets/404.png';
-    img.alt = 'dynamically added image';
-  },
   onMessage({ data }) {
     console.log('received', data);
+  },
+  showPeople() {},
+  initDB() {
+    let req = indexedDB.open('colorDB');
+    req.onsuccess = (e) => {
+      APP.DB = e.target.result;
+      APP.showPeople();
+    };
   },
 };
 

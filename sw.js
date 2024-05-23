@@ -1,6 +1,7 @@
 const version = 2;
 const staticCache = `static-${version}`;
 const files = ['/', '/index.html', '/index.css', '/app.js'];
+let DB = null;
 
 /**------------------UTILITY FUNCTIONS--------------------- */
 /**to setup during installation */
@@ -29,7 +30,7 @@ async function storeInCache(cacheName, req, fetchResponse) {
 function getFromCache(url) {
   return caches.match(url);
 }
-/** */
+/**send message to particular client or broadcast to all of them */
 async function sendMessage(response, clientId) {
   let clientsList = [];
   if (clientId) {
@@ -39,6 +40,45 @@ async function sendMessage(response, clientId) {
     clientsList = await clients.matchAll({ includeUncontrolled: true });
   }
   return Promise.all(clientsList.map((client) => client.postMessage(response)));
+}
+/**open the database connection and store the DB reference */
+async function openDB(callback) {
+  const request = indexedDB.open('colorDB', version);
+  request.onerror = (err) => {
+    console.log(err);
+    DB = null;
+  };
+  request.onupgradeneeded = (ev) => {
+    let db = ev.target.result;
+    if (!db.objectStoreNames.contains('colorStore')) {
+      db.createObjectStore('colorStore', {
+        keypath: 'id',
+      });
+    }
+  };
+  request.onsuccess = (ev) => {
+    DB = ev.target.result;
+    console.log('upgraded and opened');
+    if (callback) callback();
+  };
+}
+/** */
+function saveConfig(payload, clientId) {
+  if (payload && DB) {
+    let tx = DB.transaction('colorStore', 'readwrite');
+    tx.onerror = (_err) => {};
+    tx.oncomplete = (_ev) => {
+      // let msg = 'saved the data';
+      sendMessage({ savedConfig: payload }, clientId);
+      let store = tx.objectStore('colorStore');
+      let req = store.put(payload);
+      req.onsuccess = () => {
+        // tx.commit() will be called automatically
+        // req.oncomplete will be called next
+      };
+    };
+  } else {
+  }
 }
 /**------------------UTILITY FUNCTIONS END--------------------- */
 
@@ -54,6 +94,7 @@ self.addEventListener('activate', (e) => {
   console.time('activation');
   // scrapping the unused files
   e.waitUntil(removeUnusedFiles());
+  openDB();
   console.timeEnd('activation');
   console.log('sw activated');
 });
@@ -84,7 +125,14 @@ self.addEventListener('message', (ev) => {
   const payload = ev.data;
   let clientId = ev.source.id;
   if ('addConfig' in payload) {
-    sendMessage({ code: 0, message: 'Pretend i added config' }, clientId);
+    if (DB) {
+      saveConfig(payload.addConfig, clientId);
+    } else {
+      openDB(() => {
+        saveConfig(payload.addConfig, clientId);
+      });
+    }
+    // sendMessage({ code: 0, message: 'Pretend i added config' }, clientId);
   }
   if ('otherAction' in payload) {
     sendMessage({ code: 0, message: 'broadcasting this message' });
